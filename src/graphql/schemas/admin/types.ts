@@ -239,21 +239,26 @@ export const typeDefs = gql`
 
     adminManageUserSubscriptions(
       id: ID
-      name: String!
+      name: String
+      priceDescription: String
       description: String
-      price: Float!
-      duration: Int!
-      features: [String!]!
+      price: Float
+      duration: Int
+      features: [String]
       toDelete: Boolean
     ): UserSubscription
 
     adminManageBusinessSubscriptions(
       id: ID
-      name: String!
+      name: String
+      priceDescription: String
       description: String
-      price: Float!
-      duration: Int!
-      features: [String!]!
+      type: BusinessType
+      price: Float
+      duration: Int
+      features: [String]
+      order: Int
+      priority: Int
       tierLevel: Int
       toDelete: Boolean
     ): BusinessSubscription
