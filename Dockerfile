@@ -31,6 +31,11 @@ RUN apt-get update -y && apt-get install -y openssl libssl-dev
 # Copy only the built files and node_modules from the builder stage
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/firebase-service-account-key.json ./firebase-service-account-key.json
+# Copy the service account file to the utils directory
+COPY firebase-service-account-key.json /app/utils/firebase-service-account-key.json
+
+# Or if your build output is in dist/
+COPY firebase-service-account-key.json /app/dist/utils/firebase-service-account-key.json
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
