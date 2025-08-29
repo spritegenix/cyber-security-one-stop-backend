@@ -35,7 +35,8 @@ COPY --from=builder /app/firebase-service-account-key.json ./firebase-service-ac
 COPY firebase-service-account-key.json /app/utils/firebase-service-account-key.json
 
 # Or if your build output is in dist/
-COPY firebase-service-account-key.json /app/dist/utils/firebase-service-account-key.json
+COPY firebase-service-account-key.json /app/src/utils/firebase-service-account-key.json
+
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json

@@ -17,6 +17,8 @@ if (!stats.isFile()) {
 }
 
 
+
+
 const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"));
 
 if (!admin.apps.length) {
