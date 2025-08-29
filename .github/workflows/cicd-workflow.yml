@@ -42,7 +42,7 @@ jobs:
         run: |
           # Remove any existing test container
           docker rm -f test-container 2>/dev/null || true
-          
+
           # Run container with health check
           docker run -d \
             --name test-container \
@@ -52,7 +52,7 @@ jobs:
             --health-timeout=10s \
             --health-retries=3 \
             ${{ env.IMAGE_NAME }}:latest
-          
+
           echo "Container started, waiting for initialization..."
 
       - name: Wait for Container Health Check
@@ -75,7 +75,7 @@ jobs:
             sleep 5
             timeout=$((timeout-5))
           done
-          
+
           if [ $timeout -le 0 ]; then
             echo "Timeout waiting for container to be healthy"
             docker logs test-container
@@ -92,7 +92,7 @@ jobs:
           fi
           echo "Container tests passed!"
 
-            - name: Stop and Remove Test Container
+      - name: Stop and Remove Test Container
         if: always()
         run: |
           docker stop test-container 2>/dev/null || true
@@ -103,7 +103,6 @@ jobs:
         run: |
           echo "Container logs:"
           docker logs test-container || true
-
 
       - name: Push Docker Image to Docker Hub
         run: |
@@ -153,21 +152,21 @@ jobs:
             --health-timeout=10s \
             --health-retries=3 \
             ${{ env.IMAGE_NAME }}:latest
-          
+
           echo "Container deployed successfully"
 
       - name: Verify Deployment
         run: |
           echo "Waiting for container to initialize..."
           sleep 15
-          
+
           # Check if container is running
           if [ "$(docker inspect -f '{{.State.Running}}' ${{ env.CONTAINER_NAME }})" != "true" ]; then
             echo "Deployment failed: Container is not running"
             docker logs ${{ env.CONTAINER_NAME }}
             exit 1
           fi
-          
+
           # Wait for health check
           timeout=60
           while [ $timeout -gt 0 ]; do
@@ -186,7 +185,7 @@ jobs:
             sleep 5
             timeout=$((timeout-5))
           done
-          
+
           if [ $timeout -le 0 ]; then
             echo "❌ Deployment timeout: Container didn't become healthy"
             docker logs ${{ env.CONTAINER_NAME }}
