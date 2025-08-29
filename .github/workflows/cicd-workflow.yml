@@ -49,7 +49,7 @@ jobs:
             --network=host \
             --name test-container \
             -p 4000:4000 \
-            --health-cmd="wget --no-verbose --tries=1 --spider http://localhost:4000/health || exit 1"
+            --health-cmd="wget --no-verbose --tries=1 --spider http://localhost:4000/health || exit 1" \
             --health-interval=15s \
             --health-timeout=10s \
             --health-retries=5 \
@@ -77,25 +77,26 @@ jobs:
           echo "=== Container Process Status ==="
           docker exec test-container ps aux 2>/dev/null || echo "ps command failed"
 
-          echo "=== Check if curl is available ==="
-          docker exec test-container which curl 2>/dev/null || echo "curl not found in container"
+          echo "=== Check available tools ==="
+          docker exec test-container which wget 2>/dev/null && echo "✅ wget available" || echo "❌ wget not found"
+          docker exec test-container which curl 2>/dev/null && echo "✅ curl available" || echo "❌ curl not found"
 
       - name: Test Health Check Manually
         run: |
           echo "=== Testing Health Endpoints Manually ==="
 
-          # Test root endpoint
-          echo "Testing root endpoint (/):"
-          docker exec test-container curl -v http://localhost:4000/ 2>&1 || echo "Root endpoint failed with exit code $?"
+          # Test with wget first
+          echo "Testing health endpoint with wget:"
+          docker exec test-container wget --no-verbose --tries=1 --spider http://localhost:4000/health 2>&1 || echo "wget health test failed with exit code $?"
 
-          # Test health endpoint
-          echo "Testing health endpoint (/health):"
-          docker exec test-container curl -v http://localhost:4000/health 2>&1 || echo "Health endpoint failed with exit code $?"
+          # Test root endpoint with wget
+          echo "Testing root endpoint with wget:"
+          docker exec test-container wget --no-verbose --tries=1 --spider http://localhost:4000/ 2>&1 || echo "wget root test failed with exit code $?"
 
-          # Test from host network
+          # Test from host network with curl (if available on host)
           echo "Testing from host network:"
-          curl -v http://localhost:4000/health 2>&1 || echo "Host network health test failed with exit code $?"
-          curl -v http://localhost:4000/ 2>&1 || echo "Host network root test failed with exit code $?"
+          curl -v http://localhost:4000/health 2>&1 && echo "✅ Host health test passed" || echo "❌ Host health test failed"
+          curl -v http://localhost:4000/ 2>&1 && echo "✅ Host root test passed" || echo "❌ Host root test failed"
 
       - name: Wait for Container Health Check
         run: |
@@ -141,14 +142,14 @@ jobs:
         run: |
           echo "=== Final Endpoint Tests ==="
 
-          # Test health endpoint
+          # Test health endpoint from host
           if ! curl -f http://localhost:4000/health; then
             echo "❌ Health endpoint test failed"
             docker logs test-container
             exit 1
           fi
 
-          # Test root endpoint
+          # Test root endpoint from host
           if ! curl -f http://localhost:4000/; then
             echo "❌ Root endpoint test failed"
             docker logs test-container
@@ -234,7 +235,7 @@ jobs:
             --network=host \
             --name ${{ env.CONTAINER_NAME }} \
             --restart unless-stopped \
-            --health-cmd="curl -f http://localhost:4000/health || exit 1" \
+            --health-cmd="wget --no-verbose --tries=1 --spider http://localhost:4000/health || exit 1" \
             --health-interval=15s \
             --health-timeout=10s \
             --health-retries=5 \
