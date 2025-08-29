@@ -95,17 +95,17 @@ jobs:
           fi
           echo "Container tests passed!"
 
+      - name: Capture Container Logs on Failure
+        if: failure()
+        run: |
+          echo "Container logs:"
+          docker logs test-container
+
       - name: Stop and Remove Test Container
         if: always()
         run: |
           docker stop test-container 2>/dev/null || true
           docker rm test-container 2>/dev/null || true
-
-      - name: Capture Container Logs on Failure
-        if: always() && failure()
-        run: |
-          echo "Container logs:"
-          docker logs test-container
 
       - name: Push Docker Image to Docker Hub
         run: |
