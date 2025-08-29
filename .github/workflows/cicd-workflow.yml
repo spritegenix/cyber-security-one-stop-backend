@@ -45,6 +45,7 @@ jobs:
 
           # Run container with health check
           docker run -d \
+            --network=host \
             --name test-container \
             -p 4000:4000 \
             --health-cmd="nc -z localhost 4000 || exit 1" \
@@ -52,6 +53,7 @@ jobs:
             --health-timeout=10s \
             --health-retries=3 \
             ${{ env.IMAGE_NAME }}:latest
+
 
           echo "Container started, waiting for initialization..."
 
