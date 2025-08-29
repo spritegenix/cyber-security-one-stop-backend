@@ -93,6 +93,7 @@ jobs:
           echo "Container tests passed!"
             - name: Capture Container Logs on Failure
         if: always() && failure()
+        
         run: |
           echo "Container logs:"
           docker logs test-container || true
