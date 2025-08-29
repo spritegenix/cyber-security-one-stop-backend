@@ -61,10 +61,10 @@ async function startServer() {
     );
 
     // *Server Start
-  const port = process.env.PORT || 4000;
+  const port = Number(process.env.PORT) || 4000;
 
 
-    app.listen(port, () => {
+    app.listen(port, "0.0.0.0", () => {
       const networkInterfaces = os.networkInterfaces();
       const addresses: string[] = [];
 
