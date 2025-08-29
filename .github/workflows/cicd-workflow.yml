@@ -91,6 +91,11 @@ jobs:
             exit 1
           fi
           echo "Container tests passed!"
+            - name: Capture Container Logs on Failure
+        if: always() && failure()
+        run: |
+          echo "Container logs:"
+          docker logs test-container || true
 
       - name: Stop and Remove Test Container
         if: always()
