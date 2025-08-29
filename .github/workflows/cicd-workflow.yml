@@ -102,7 +102,7 @@ jobs:
         if: always() && failure()
         run: |
           echo "Container logs:"
-          docker logs test-container || true
+          docker logs test-container
 
       - name: Push Docker Image to Docker Hub
         run: |
