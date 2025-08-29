@@ -23,19 +23,21 @@ async function startServer() {
     );
     app.use(cookieParser());
     app.use(json());
-    app.use(
+        app.use(
       graphqlUploadExpress({
         maxFileSize:
-          parseInt(process.env.MAX_FILE_SIZE_MB || "100") * 1024 * 1024,
-        maxFiles: parseInt(process.env.MAX_FILES_UPLOAD || "10"),
+          parseInt(process.env.MAX_FILE_SIZE_MB || "100", 10) * 1024 * 1024,
+        maxFiles: parseInt(process.env.MAX_FILES_UPLOAD || "10", 10),
       })
     );
+
     app.use(auth);
     const server = new ApolloServer({
       typeDefs: schema.typeDefs,
       resolvers: schema.resolvers,
-      csrfPrevention: process.env.ENABLE_CSRF_PREVENTION === "true",
-      introspection: process.env.GRAPHQL_INTROSPECTION === "true",
+            csrfPrevention: process.env.ENABLE_CSRF_PREVENTION === "true" || process.env.ENABLE_CSRF_PREVENTION === "1",
+      introspection: process.env.GRAPHQL_INTROSPECTION === "true" || process.env.GRAPHQL_INTROSPECTION === "1",
+
     });
     await server.start();
 
@@ -59,7 +61,8 @@ async function startServer() {
     );
 
     // *Server Start
-    const port = process.env.PORT;
+       const port = process.env.PORT || 4000;
+
 
     app.listen(port, () => {
       const networkInterfaces = os.networkInterfaces();
