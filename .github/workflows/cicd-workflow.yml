@@ -49,7 +49,7 @@ jobs:
             --network=host \
             --name test-container \
             -p 4000:4000 \
-            --health-cmd="curl -f http://localhost:4000/health || exit 1" \
+            --health-cmd="wget --no-verbose --tries=1 --spider http://localhost:4000/health || exit 1"
             --health-interval=15s \
             --health-timeout=10s \
             --health-retries=5 \
