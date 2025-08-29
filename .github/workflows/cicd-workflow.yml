@@ -35,7 +35,7 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build -t ${{ env.IMAGE_NAME }}:latest .
+          docker build --no-cache -t ${{ env.IMAGE_NAME }}:latest .
           echo "Image built successfully"
 
       - name: Run Docker Container for Testing
