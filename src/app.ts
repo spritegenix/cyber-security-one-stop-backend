@@ -46,6 +46,9 @@ async function startServer() {
     app.get("/", (_: unknown, res: Response) => {
       res.send("Server is working!");
     });
+    app.get("/health", (_: unknown, res: Response) => {
+      res.status(200).send("ok");
+    });
 
     app.use(
       "/graphql",
