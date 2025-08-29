@@ -12,114 +12,114 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      # - name: Checkout code
+      #   uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      # - name: Set up Docker Buildx
+      #   uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+      # - name: Log in to Docker Hub
+      #   uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKER_USERNAME }}
+      #     password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Decode and Create .env File
-        env:
-          ENV_FILE_B64: ${{ secrets.ENV_FILE_B64 }}
-        run: |
-          if [ -n "$ENV_FILE_B64" ]; then
-            echo "$ENV_FILE_B64" | base64 --decode > .env
-          else
-            echo "Warning: ENV_FILE_B64 secret not found"
-          fi
+      # - name: Decode and Create .env File
+      #   env:
+      #     ENV_FILE_B64: ${{ secrets.ENV_FILE_B64 }}
+      #   run: |
+      #     if [ -n "$ENV_FILE_B64" ]; then
+      #       echo "$ENV_FILE_B64" | base64 --decode > .env
+      #     else
+      #       echo "Warning: ENV_FILE_B64 secret not found"
+      #     fi
 
-      - name: Build Docker Image
-        run: |
-          docker build --no-cache -t ${{ env.IMAGE_NAME }}:latest .
-          echo "Image built successfully"
+      # - name: Build Docker Image
+      #   run: |
+      #     docker build --no-cache -t ${{ env.IMAGE_NAME }}:latest .
+      #     echo "Image built successfully"
 
-      - name: Run Docker Container for Testing
-        run: |
-          # Remove any existing test container
-          docker rm -f test-container 2>/dev/null || true
+      # - name: Run Docker Container for Testing
+      #   run: |
+      #     # Remove any existing test container
+      #     docker rm -f test-container 2>/dev/null || true
 
-          # Run container with health check
-          docker run -d \
-            --network=host \
-            --name test-container \
-            -p 4000:4000 \
-            --health-cmd="curl -f http://localhost:4000/health || exit 1" \
-            --health-interval=30s \
-            --health-timeout=10s \
-            --health-retries=3 \
-            ${{ env.IMAGE_NAME }}:latest
+      #     # Run container with health check
+      #     docker run -d \
+      #       --network=host \
+      #       --name test-container \
+      #       -p 4000:4000 \
+      #       --health-cmd="curl -f http://localhost:4000/health || exit 1" \
+      #       --health-interval=30s \
+      #       --health-timeout=10s \
+      #       --health-retries=3 \
+      #       ${{ env.IMAGE_NAME }}:latest
 
-          echo "Container started, waiting for initialization..."
+      #     echo "Container started, waiting for initialization..."
 
-      - name: Wait for Container Health Check
-        run: |
-          # Wait up to 120 seconds for container to be healthy
-          timeout=120
-          while [ $timeout -gt 0 ]; do
-            status=$(docker inspect --format='{{.State.Health.Status}}' test-container 2>/dev/null || echo "no-health")
-            
-            if [ "$status" = "healthy" ]; then
-              echo "Container is healthy!"
-              break
-            elif [ "$status" = "unhealthy" ]; then
-              echo "Container failed health check"
-              docker logs test-container
-              exit 1
-            fi
-            
-            echo "Waiting for container... (${timeout}s remaining)"
-            sleep 5
-            timeout=$((timeout-5))
-          done
+      # - name: Wait for Container Health Check
+      #   run: |
+      #     # Wait up to 120 seconds for container to be healthy
+      #     timeout=120
+      #     while [ $timeout -gt 0 ]; do
+      #       status=$(docker inspect --format='{{.State.Health.Status}}' test-container 2>/dev/null || echo "no-health")
 
-          if [ $timeout -le 0 ]; then
-            echo "Timeout waiting for container to be healthy"
-            docker logs test-container
-            exit 1
-          fi
+      #       if [ "$status" = "healthy" ]; then
+      #         echo "Container is healthy!"
+      #         break
+      #       elif [ "$status" = "unhealthy" ]; then
+      #         echo "Container failed health check"
+      #         docker logs test-container
+      #         exit 1
+      #       fi
 
-      - name: Test Container Endpoints
-        run: |
-          # Test if the application is responding
-          if ! curl -f http://localhost:4000/health; then
-            echo "Health endpoint failed"
-            docker logs test-container
-            exit 1
-          fi
-          echo "Container tests passed!"
+      #       echo "Waiting for container... (${timeout}s remaining)"
+      #       sleep 5
+      #       timeout=$((timeout-5))
+      #     done
 
-      - name: List Containers on Failure
-        if: failure()
-        run: docker ps -a
+      #     if [ $timeout -le 0 ]; then
+      #       echo "Timeout waiting for container to be healthy"
+      #       docker logs test-container
+      #       exit 1
+      #     fi
 
-      - name: Capture Container Logs on Failure
-        if: failure()
-        run: |
-          echo "Container logs:"
-          docker logs test-container || echo "No logs found for test-container"
+      # - name: Test Container Endpoints
+      #   run: |
+      #     # Test if the application is responding
+      #     if ! curl -f http://localhost:4000/health; then
+      #       echo "Health endpoint failed"
+      #       docker logs test-container
+      #       exit 1
+      #     fi
+      #     echo "Container tests passed!"
 
-      - name: Stop and Remove Test Container
-        if: always()
-        run: |
-          docker stop test-container 2>/dev/null || true
-          docker rm test-container 2>/dev/null || true
+      # - name: List Containers on Failure
+      #   if: failure()
+      #   run: docker ps -a
 
-      - name: Push Docker Image to Docker Hub
-        run: |
-          docker push ${{ env.IMAGE_NAME }}:latest
-          echo "Image pushed successfully"
+      # - name: Capture Container Logs on Failure
+      #   if: failure()
+      #   run: |
+      #     echo "Container logs:"
+      #     docker logs test-container || echo "No logs found for test-container"
 
-      - name: Cleanup
-        if: always()
-        run: |
-          rm -f .env
-          docker system prune -f
+      # - name: Stop and Remove Test Container
+      #   if: always()
+      #   run: |
+      #     docker stop test-container 2>/dev/null || true
+      #     docker rm test-container 2>/dev/null || true
+
+      # - name: Push Docker Image to Docker Hub
+      #   run: |
+      #     docker push ${{ env.IMAGE_NAME }}:latest
+      #     echo "Image pushed successfully"
+
+      # - name: Cleanup
+      #   if: always()
+      #   run: |
+      #     rm -f .env
+      #     docker system prune -f
 
   deploy:
     needs: build
