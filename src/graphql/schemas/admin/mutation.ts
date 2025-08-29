@@ -19,6 +19,7 @@ import {
   adminManageTestimonials,
   adminManageUserSubscriptions,
   adminVerifyBusinesses,
+  adminLogin
 } from "./controller";
 
 export const Mutation = {
@@ -61,4 +62,5 @@ export const Mutation = {
   adminManageBusinessAdBannerImage,
 
   adminManageBusinessMobileAdBannerImage,
+  adminLogin
 };

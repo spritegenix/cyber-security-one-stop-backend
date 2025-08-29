@@ -41,6 +41,7 @@ export const typeDefs = gql`
     message: String
     token: String
     requestId: String
+    
   }
 
   type UserContact {

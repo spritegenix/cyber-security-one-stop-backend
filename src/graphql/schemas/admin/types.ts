@@ -58,6 +58,18 @@ export const typeDefs = gql`
     limit: Int
     totalPages: Int
   }
+    input AdminLoginInput {
+     idToken: String!,
+
+   
+    }
+    type AdminLoginPayload {
+    token: String!
+    id: ID
+    name: String
+    email: String
+    message: String
+    }
 
   type AllFeedbacksResult {
     reviews: [Review]
@@ -98,12 +110,14 @@ export const typeDefs = gql`
     limit: Int
     totalPages: Int
   }
+ 
 
   # Query Type Definitions
   type Query {
     status: String!
 
     adminLogin(email: String!, password: String!): Admin
+   
 
     adminAllUsers(
       name: String
@@ -292,6 +306,8 @@ export const typeDefs = gql`
     adminManageBusinessMobileAdBannerImage(
       businessMobileAdBannerImages: [AdminBusinessMobileAdBannerImageInput]
     ): [AdminBusinessMobileAdBannerImage]
+
+     adminLogin(input: AdminLoginInput): AdminLoginPayload
   }
 
   input BusinessesVerify {

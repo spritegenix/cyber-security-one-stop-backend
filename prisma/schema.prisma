@@ -1,7 +1,6 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = []
-  binaryTargets   = ["native"]
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -52,6 +51,7 @@ model User {
   subscription        UserSubscription? @relation(fields: [subscriptionId], references: [id])
   testimonials        Testimonial[]
   adminNotice         AdminNotice?
+  firebaseUid         String?           @unique
 
   @@index([id, name, slug])
   @@index([subscriptionId])
@@ -151,6 +151,7 @@ model Business {
   businessDetails             BusinessDetails?
   adminNotice                 AdminNotice?
   price                       Float?
+  firebaseUid                 String                        @unique
 
   @@index([id, name, slug, isBusinessVerified, isListed, isBlocked])
   @@index([averageRating, reviewCount])
@@ -169,6 +170,7 @@ model BusinessPrimaryContact {
   otp          String?
   otpExpiresAt DateTime?
   createdAt    DateTime    @default(now())
+  firebaseUid  String?
   updatedAt    DateTime    @updatedAt
   deletedAt    DateTime?
   business     Business    @relation(fields: [businessId], references: [id])
@@ -374,14 +376,15 @@ model Court {
 }
 
 model Admin {
-  id        String    @id @default(uuid())
-  name      String
-  email     String    @unique
-  password  String?
-  salt      String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  id          String    @id @default(uuid())
+  name        String
+  email       String    @unique
+  password    String?
+  salt        String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  firebaseUid String    @unique
 }
 
 enum AdminNoticeType {

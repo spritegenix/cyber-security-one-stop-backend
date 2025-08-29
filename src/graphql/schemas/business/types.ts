@@ -7,8 +7,33 @@ export const typeDefs = gql`
     status: String!
     businessMe: Business
     businessLogin(email: String, phone: String, password: String!): Business
-    getBusinessAdminNotices: [AdminNotice]
+    getBusinessAdminNotices: [AdminNotice],
   }
+   input BusinessSignupInput {
+  email: String
+  phone: String
+}
+
+input FirebaseBusinessVerifyInput {
+  idToken: String!
+  email: String
+  phone: String
+}
+
+type BusinessSignupPayload {
+  value: String!
+  message: String!
+  requestId: String
+}
+
+type FirebaseBusinessPayload {
+  token: String!
+  id: ID
+  name: String
+  slug: String
+  
+}
+
 
   enum BusinessType {
     INDIVIDUAL
@@ -83,8 +108,14 @@ export const typeDefs = gql`
     toDelete: Boolean
   }
 
+type BusinessnumberPayload {
+    message: String
+  value: String 
+  isVerified: Boolean 
+  requestId: String}
+  
   type Mutation {
-    businessSignup(email: String, phone: String): BusinessPrimaryContact
+    businessSignup(email: String, phone: String, token: String!): BusinessPrimaryContact
     resendBusinessOtp(email: String, phone: String): BusinessPrimaryContact
     verifyBusinessPrimaryContact(
       email: String
@@ -150,6 +181,8 @@ export const typeDefs = gql`
       razorpay_order_id: String!
       razorpay_payment_id: String!
       razorpay_signature: String!
-    ): Business
+    ): Business  
+  firebaseGoogleOAuthBusinessVerify(input: FirebaseBusinessVerifyInput!): FirebaseBusinessPayload
+    addBusinessContact(firebaseToken:String!):BusinessnumberPayload
   }
 `;

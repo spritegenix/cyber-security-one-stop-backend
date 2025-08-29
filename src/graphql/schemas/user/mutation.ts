@@ -10,7 +10,8 @@ import {
   userSignup,
   userSubscription,
   userVerifyPayment,
-  verifyUserContact,
+  // verifyUserContact,
+firebaseGoogleOAuthVerify,
 } from "./controller";
 
 export const Mutation = {
@@ -20,7 +21,7 @@ export const Mutation = {
 
   addUserContact,
 
-  verifyUserContact,
+  // verifyUserContact,
 
   forgetUserPassword,
 
@@ -37,4 +38,5 @@ export const Mutation = {
   userVerifyPayment,
 
   userGoogleOAuthVerify,
+  firebaseGoogleOAuthVerify,
 };

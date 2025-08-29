@@ -5,8 +5,8 @@ import {
   ForgetBusinessPasswordSchema,
   BusinessLoginInput,
   BusinessLoginSchema,
-  BusinessSignupInput,
-  BusinessSignupSchema,
+  // BusinessSignupInput,
+  // BusinessSignupSchema,
   UpdateBusinessDetailsInput,
   UpdateBusinessDetailsSchema,
   ManageBusinessAddressInput,
@@ -46,6 +46,7 @@ import { verifyOtp } from "../../../utils/verifyOtp";
 import { razorpay } from "../../../utils/razorpay";
 import { createHmac } from "crypto";
 import { addressUtility } from "../../../utils/addressUtility";
+import admin, { verifyFirebaseIdToken } from "../../../utils/firebase";
 
 const OTP_EXPIRY_MINUTES = parseInt(process.env.OTP_EXPIRY_MINUTES || "10", 10);
 
@@ -129,6 +130,7 @@ const checkVerificationAttempts = async (
 };
 
 export const businessMe = async (_: unknown, args: unknown, context: any) => {
+
   if (
     !context.owner.businessId ||
     typeof context.owner.businessId !== "string"
@@ -320,121 +322,121 @@ export const businessMe = async (_: unknown, args: unknown, context: any) => {
   return business;
 };
 
-export const businessSignup = async (_: unknown, args: BusinessSignupInput) => {
-  const validatedData = BusinessSignupSchema.parse(args);
+// export const businessSignup = async (_: unknown, args: BusinessSignupInput) => {
+//   const validatedData = BusinessSignupSchema.parse(args);
 
-  if (!validatedData) return;
+//   if (!validatedData) return;
 
-  return await prisma.$transaction(async (tx) => {
-    let contactConditions: Prisma.BusinessPrimaryContactWhereInput;
+//   return await prisma.$transaction(async (tx) => {
+//     let contactConditions: Prisma.BusinessPrimaryContactWhereInput;
 
-    if (validatedData.email) {
-      contactConditions = {
-        value: validatedData.email,
-        type: "EMAIL",
-        isVerified: true,
-        deletedAt: null,
-      };
-    } else {
-      contactConditions = {
-        value: validatedData.phone,
-        type: "PHONE",
-        isVerified: true,
-        deletedAt: null,
-      };
-    }
+//     if (validatedData.email) {
+//       contactConditions = {
+//         value: validatedData.email,
+//         type: "EMAIL",
+//         isVerified: true,
+//         deletedAt: null,
+//       };
+//     } else {
+//       contactConditions = {
+//         value: validatedData.phone,
+//         type: "PHONE",
+//         isVerified: true,
+//         deletedAt: null,
+//       };
+//     }
 
-    const existingContact = await tx.businessPrimaryContact.findFirst({
-      where: contactConditions,
-    });
+//     const existingContact = await tx.businessPrimaryContact.findFirst({
+//       where: contactConditions,
+//     });
 
-    if (existingContact) {
-      throw new Error(
-        `A verified business with this ${existingContact.type.toLowerCase()} already exists!`
-      );
-    }
+//     if (existingContact) {
+//       throw new Error(
+//         `A verified business with this ${existingContact.type.toLowerCase()} already exists!`
+//       );
+//     }
 
-    if (validatedData.email) {
-      cleanupUnverifiedContacts(tx, validatedData.email, "EMAIL");
-    }
-    if (validatedData.phone) {
-      cleanupUnverifiedContacts(tx, validatedData.phone, "PHONE");
-    }
+//     if (validatedData.email) {
+//       cleanupUnverifiedContacts(tx, validatedData.email, "EMAIL");
+//     }
+//     if (validatedData.phone) {
+//       cleanupUnverifiedContacts(tx, validatedData.phone, "PHONE");
+//     }
 
-    // Generate OTPs
-    // const emailOtpData = validatedData.email ? createOtpData() : null;
-    // const phoneOtpData = validatedData.phone ? createOtpData() : null;
+//     // Generate OTPs
+//     // const emailOtpData = validatedData.email ? createOtpData() : null;
+//     // const phoneOtpData = validatedData.phone ? createOtpData() : null;
 
-    const business = await tx.business.create({
-      data: {
-        // name: validatedData.email
-        //   ? validatedData.email.split("@")[0]
-        //   : validatedData.phone,
-      },
-    });
+//     const business = await tx.business.create({
+//       data: {
+//         // name: validatedData.email
+//         //   ? validatedData.email.split("@")[0]
+//         //   : validatedData.phone,
+//       },
+//     });
 
-    const otpExpiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+//     const otpExpiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
-    let requestId: string | undefined;
-    let reachedIdEmail: string | undefined;
-    let reachedIdPhone: string | undefined;
+//     let requestId: string | undefined;
+//     let reachedIdEmail: string | undefined;
+//     let reachedIdPhone: string | undefined;
 
-    if (validatedData.email && otpExpiresAt) {
-      const response = await sendOtpEmail(
-        business.name,
-        validatedData.email,
-        OTP_EXPIRY_MINUTES
-      );
-      requestId = response.requestId;
-      reachedIdEmail = response.requestId;
-    } else if (validatedData.phone && otpExpiresAt) {
-      const response = await sendOtpPhone(
-        business.name,
-        validatedData.phone,
-        OTP_EXPIRY_MINUTES
-      );
-      requestId = response.requestId;
-      reachedIdPhone = response.requestId;
-    }
+//     if (validatedData.email && otpExpiresAt) {
+//       const response = await sendOtpEmail(
+//         business.name,
+//         validatedData.email,
+//         OTP_EXPIRY_MINUTES
+//       );
+//       requestId = response.requestId;
+//       reachedIdEmail = response.requestId;
+//     } else if (validatedData.phone && otpExpiresAt) {
+//       const response = await sendOtpPhone(
+//         business.name,
+//         validatedData.phone,
+//         OTP_EXPIRY_MINUTES
+//       );
+//       requestId = response.requestId;
+//       reachedIdPhone = response.requestId;
+//     }
 
-    // Create contacts
-    if (validatedData.email) {
-      await tx.businessPrimaryContact.create({
-        data: {
-          business: {
-            connect: { id: business.id },
-          },
-          type: "EMAIL",
-          value: validatedData.email,
-          isPrimary: true,
-          otp: reachedIdEmail,
-          otpExpiresAt: reachedIdEmail ? otpExpiresAt : null,
-        },
-      });
-    }
+//     // Create contacts
+//     if (validatedData.email) {
+//       await tx.businessPrimaryContact.create({
+//         data: {
+//           business: {
+//             connect: { id: business.id },
+//           },
+//           type: "EMAIL",
+//           value: validatedData.email,
+//           isPrimary: true,
+//           otp: reachedIdEmail,
+//           otpExpiresAt: reachedIdEmail ? otpExpiresAt : null,
+//         },
+//       });
+//     }
 
-    if (validatedData.phone) {
-      await tx.businessPrimaryContact.create({
-        data: {
-          businessId: business.id,
-          type: "PHONE",
-          value: validatedData.phone,
-          isPrimary: !validatedData.email,
-          otp: reachedIdPhone,
-          otpExpiresAt: reachedIdPhone ? otpExpiresAt : null,
-        },
-      });
-    }
+//     if (validatedData.phone) {
+//       await tx.businessPrimaryContact.create({
+//         data: {
+//           businessId: business.id,
+//           type: "PHONE",
+//           value: validatedData.phone,
+//           isPrimary: !validatedData.email,
+//           otp: reachedIdPhone,
+//           otpExpiresAt: reachedIdPhone ? otpExpiresAt : null,
+//         },
+//       });
+//     }
 
-    return {
-      value: validatedData.email || validatedData.phone,
-      message: `Verification code sent to ${
-        validatedData.email || validatedData.phone
-      }.`,
-      requestId,
-    };
-  });
-};
+//     return {
+//       value: validatedData.email || validatedData.phone,
+//       message: `Verification code sent to ${
+//         validatedData.email || validatedData.phone
+//       }.`,
+//       requestId,
+//     };
+//   });
+// };
 
 export const resendBusinessOtp = async (
   _: unknown,
@@ -2772,4 +2774,115 @@ const generateUniqueSlug = async ({
   }
 
   return slug;
+};
+
+
+
+interface FirebaseBusinessVerifyInput {
+  idToken: string;
+  email?: string;
+  phone?: string;
+}
+
+export const firebaseGoogleOAuthBusinessVerify = async (
+  _: unknown,
+  args: { input: FirebaseBusinessVerifyInput }
+) => {
+  const { idToken, email, phone } = args.input;
+
+  // 1. Verify token with Firebase
+  const decodedToken = await admin.auth().verifyIdToken(idToken);
+  const { uid, name } = decodedToken;
+
+  // 2. Look up existing business
+  let business = await prisma.business.findUnique({
+    where: { firebaseUid: uid },
+  });
+
+  // 3. Create if not found
+  if (!business) {
+    const displayName = name || email?.split("@")[0] || phone || "New User";
+
+    const slug = await generateUniqueSlug({
+      initialSlug: displayName,
+      id: undefined,
+    });
+
+    business = await prisma.business.create({
+      data: {
+        firebaseUid: uid,
+        name: displayName,
+        slug,
+        primaryContacts: {
+          create: {
+            value: email || phone || decodedToken.email!,
+            type: email ? "EMAIL" : "PHONE",
+            isVerified: true,
+            isPrimary: true,
+          },
+        },
+      },
+    });
+  }
+
+  // 4. Return payload (no OTP!)
+  return {
+    token: idToken,
+    id: business.id,
+    name: business.name,
+    slug: business.slug,
+  };
+};
+
+
+export const addBusinessContact = async (
+  _: unknown,
+  args: { firebaseToken: string }
+) => {
+
+  const { firebaseToken } = args;
+  const decodedToken = await verifyFirebaseIdToken(firebaseToken);
+  const phone = decodedToken.phone_number;
+  const firebaseUid = decodedToken.uid;
+ if (!phone) {
+    throw new Error("No phone number found in Firebase token.");
+  }
+
+
+  return await prisma.$transaction(async (tx) => {
+    const user = await tx.business.findFirst({
+      where: {
+        firebaseUid,
+        deletedAt: null,
+      },
+    });
+    console.log("Backend user:", user); // Add this line
+
+    if (!user) {
+      throw new Error("Business not found");
+    }
+
+    const existingContact = await tx.businessPrimaryContact.findFirst({
+      where: {
+        value: phone,
+        deletedAt: null,
+      },
+    });
+
+    if (existingContact) {
+      throw new Error("Contact already exists");
+    }
+
+    const newContact = await tx.businessPrimaryContact.create({
+      data: {
+        businessId: user.id,
+        type: "PHONE",
+        value: phone,
+        isVerified: true,
+        verifiedAt: new Date(),
+      },
+    });
+
+    return newContact;
+  });
 };

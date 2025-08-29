@@ -10,6 +10,9 @@ COPY . .
 # Copy .env file so Prisma can access the database URL
 COPY .env .env
 
+RUN apt-get update -y && apt-get install -y openssl libssl-dev
+
+
 # Install dependencies
 RUN bun install
 
@@ -24,9 +27,11 @@ FROM oven/bun:latest AS runner
 
 # Set working directory
 WORKDIR /app
-
+RUN apt-get update -y && apt-get install -y openssl libssl-dev
 # Copy only the built files and node_modules from the builder stage
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/firebase-service-account-key.json ./firebase-service-account-key.json
+
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/.env .env 
@@ -36,3 +41,4 @@ EXPOSE 4000
 
 # Run the application
 CMD ["bun", "run", "start"]
+

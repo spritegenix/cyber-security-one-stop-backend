@@ -10,9 +10,10 @@ import {
 } from "zod";
 
 export const AdminLoginSchema = object({
-  email: string().trim(),
-  password: string().trim(),
-}).optional();
+  email: string().trim().optional(),
+  password: string().trim().optional(),
+  idToken:string()
+})
 export type AdminLoginInput = infer_<typeof AdminLoginSchema>;
 
 export const AdminChangePasswordSchema = object({

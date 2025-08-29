@@ -11,6 +11,7 @@ import {
 export const BusinessSignupSchema = object({
   email: string().trim().email().optional(),
   phone: string().trim().optional(),
+  token: string(),
 })
   .refine((data) => data.email || data.phone, {
     message: "Either email or phone must be provided.",

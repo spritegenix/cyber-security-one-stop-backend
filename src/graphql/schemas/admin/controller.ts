@@ -1,8 +1,9 @@
 import { Feedback, Prisma, Review } from "@prisma/client";
 import { deleteFromSpaces, uploadToSpaces } from "../../../utils/bucket";
 import { prisma } from "../../../utils/dbConnect";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { hashPassword, verifyPassword } from "../../../utils/password";
-import { generateToken } from "../../../utils/token";
+// import { generateToken } from "../../../utils/token";
 import {
   AdminAllBusinessesInput,
   AdminAllBusinessesSchema,
@@ -68,38 +69,73 @@ import {
   AdminVerifyBusinessesSchema,
 } from "./db";
 import slugify from "slugify";
+import admin from "../../../utils/firebase";
 
-export const adminLogin = async (_: unknown, args: AdminLoginInput) => {
-  const validatedData = AdminLoginSchema.parse(args);
+// export const adminLogin = async (_: unknown, args: AdminLoginInput) => {
 
-  if (!validatedData) return;
+//   const validatedData = AdminLoginSchema.parse(args);
 
-  const admin = await prisma.admin.findFirst({
-    where: { email: validatedData.email },
-  });
+//   if (!validatedData) return;
 
-  if (!admin) {
-    throw new Error("Email doesn't exit!");
-  }
-  const verify = verifyPassword(
-    validatedData.password,
-    admin.salt!,
-    admin.password!
-  );
+//   const admin = await prisma.admin.findFirst({
+//     where: { email: validatedData.email },
+//   });
 
-  if (verify) {
-    const token = generateToken(admin.id, "ADMIN");
+//   if (!admin) {
+//     throw new Error("Email doesn't exit!");
+//   }
+//   const verify = verifyPassword(
+//     validatedData.password,
+//     admin.salt!,
+//     admin.password!
+//   );
 
-    return {
-      id: admin.id,
-      name: admin.name,
-      email: admin.email,
-      message: "Logged in successful.",
-      token: token,
-    };
-  } else {
-    throw new Error("Wrong password!");
-  }
+//   if (verify) {
+//     const token = generateToken(admin.id, "ADMIN");
+
+//     return {
+//       id: admin.id,
+//       name: admin.name,
+//       email: admin.email,
+//       message: "Logged in successful.",
+//       token: token,
+//     };
+//   } else {
+//     throw new Error("Wrong password!");
+//   }
+// };
+
+type AdminLoginArgs = {
+  input: AdminLoginInput;
+};
+export const adminLogin = async (_: unknown, args: AdminLoginArgs) => {
+
+const validatedData = AdminLoginSchema.parse(args.input);
+
+if (!validatedData) return;
+if (!validatedData.idToken) {
+  throw new Error("idToken must be provided.");
+}
+const decodedToken =  await admin.auth().verifyIdToken(validatedData.idToken) ;
+if (!decodedToken) {
+  throw new Error("Invalid token.");
+}
+
+
+const user = await prisma.admin.findFirst({
+  where: { firebaseUid: decodedToken.uid },
+});
+
+if (!user) {
+  throw new Error("Admin not found.");
+}
+return {
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  message: "Logged in successfully.",
+  token: validatedData.idToken,
+};
 };
 
 export const adminChangePassword = async (
@@ -1731,6 +1767,7 @@ export const adminManageCategories = async (
   args: AdminManageCategoriesInput,
   context: any
 ) => {
+ 
   if (!context.owner.adminId || typeof context.owner.adminId !== "string") {
     throw new Error("Invalid or missing token");
   }

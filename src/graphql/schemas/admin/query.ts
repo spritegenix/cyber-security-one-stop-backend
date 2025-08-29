@@ -18,7 +18,7 @@ import {
   adminGetAllUserSubscriptions,
   adminGetBusinessById,
   adminGetUserById,
-  adminLogin,
+  // adminLogin,
   adminSearchAllFeedbacks,
   adminSearchAllReviews,
 } from "./controller";
@@ -26,7 +26,7 @@ import {
 export const Query = {
   status: () => "Server is running",
 
-  adminLogin,
+  // adminLogin,
 
   adminAllUsers,
 

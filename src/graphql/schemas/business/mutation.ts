@@ -1,10 +1,11 @@
 import {
   addBusinessPrimaryContact,
-  businessSignup,
+  // businessSignup,
   businessSubscription,
   businessVerifyPayment,
   changeBusinessPassword,
   deleteBusinessAccount,
+  firebaseGoogleOAuthBusinessVerify,
   forgetBusinessPassword,
   manageBusinessAdBannerImage,
   manageBusinessAddress,
@@ -16,10 +17,11 @@ import {
   resendBusinessOtp,
   updateBusinessDetails,
   verifyBusinessPrimaryContact,
+  addBusinessContact
 } from "./controller";
 
 export const Mutation = {
-  businessSignup,
+  // businessSignup,
 
   resendBusinessOtp,
 
@@ -52,4 +54,7 @@ export const Mutation = {
   businessSubscription,
 
   businessVerifyPayment,
+
+  firebaseGoogleOAuthBusinessVerify,
+  addBusinessContact
 };

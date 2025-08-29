@@ -10,7 +10,17 @@ export const typeDefs = gql`
     getUserAdminNotices: [AdminNotice]
     userGoogleOAuth(redirectURI: String!): UserGoogleOAuthResponse
   }
-
+type userPayload{
+  id: ID!
+      name: String!
+      slug:String
+      token:String
+}
+  input FirebaseGoogleOAuthVerifyInput  {
+   idToken: String!
+  name: String
+  phone: String
+  }
   input UserAddressInput {
     addressId: ID
     street: String
@@ -26,6 +36,8 @@ export const typeDefs = gql`
     link: String
   }
 
+
+  
   type Mutation {
     userSignup(
       name: String!
@@ -34,7 +46,9 @@ export const typeDefs = gql`
       password: String!
     ): UserContact
     resendUserOtp(email: String, phone: String): UserContact
-    addUserContact(email: String, phone: String): UserContact
+    #addUserContact(email: String, phone: String): UserContact
+    addUserContact(email: String, phone: String, firebaseToken: String!): UserContact
+
     verifyUserContact(
       email: String
       phone: String
@@ -64,5 +78,6 @@ export const typeDefs = gql`
       razorpay_signature: String!
     ): User
     userGoogleOAuthVerify(code: String!): User
+    firebaseGoogleOAuthVerify(input: FirebaseGoogleOAuthVerifyInput!): userPayload
   }
 `;

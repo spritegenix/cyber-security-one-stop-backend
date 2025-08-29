@@ -1,6 +1,6 @@
 import {
-  AddUserContactInput,
-  AddUserContactSchema,
+  // AddUserContactInput,
+  // AddUserContactSchema,
   ChangeUserPasswordInput,
   ChangeUserPasswordSchema,
   ForgetUserPasswordInput,
@@ -23,8 +23,8 @@ import {
   UserSubscriptionSchema,
   UserVerifyPaymentInput,
   UserVerifyPaymentSchema,
-  VerifyUserContactInput,
-  VerifyUserContactSchema,
+  // VerifyUserContactInput,
+  // VerifyUserContactSchema,
 } from "./db";
 import { prisma } from "../../../utils/dbConnect";
 import { hashPassword, verifyPassword } from "../../../utils/password";
@@ -40,48 +40,49 @@ import { initiateOAuth } from "../../../utils/oAuth";
 import { razorpay } from "../../../utils/razorpay";
 import { createHmac } from "crypto";
 import { addressUtility } from "../../../utils/addressUtility";
+import admin, { verifyFirebaseIdToken } from "../../../utils/firebase";
 
 const OTP_EXPIRY_MINUTES = parseInt(process.env.OTP_EXPIRY_MINUTES || "10", 10);
 
-const MAX_CONTACTS_PER_TYPE = parseInt(
-  process.env.MAX_CONTACTS_PER_TYPE || "1",
-  1
-);
+// const MAX_CONTACTS_PER_TYPE = parseInt(
+//   process.env.MAX_CONTACTS_PER_TYPE || "1",
+//   1
+// );
 const MAX_DAILY_VERIFICATION_ATTEMPTS = parseInt(
   process.env.MAX_DAILY_VERIFICATION_ATTEMPTS || "10",
   10
 );
-const ensurePrimaryContact = async (
-  tx: Prisma.TransactionClient,
-  userId: string
-): Promise<void> => {
-  const hasAnyPrimary = await tx.userContact.findFirst({
-    where: {
-      userId,
-      isPrimary: true,
-      isVerified: true,
-      deletedAt: null,
-    },
-  });
+// const ensurePrimaryContact = async (
+//   tx: Prisma.TransactionClient,
+//   userId: string
+// ): Promise<void> => {
+//   const hasAnyPrimary = await tx.userContact.findFirst({
+//     where: {
+//       userId,
+//       isPrimary: true,
+//       isVerified: true,
+//       deletedAt: null,
+//     },
+//   });
 
-  if (!hasAnyPrimary) {
-    const mostRecentVerified = await tx.userContact.findFirst({
-      where: {
-        userId,
-        isVerified: true,
-        deletedAt: null,
-      },
-      orderBy: { verifiedAt: "desc" },
-    });
+//   if (!hasAnyPrimary) {
+//     const mostRecentVerified = await tx.userContact.findFirst({
+//       where: {
+//         userId,
+//         isVerified: true,
+//         deletedAt: null,
+//       },
+//       orderBy: { verifiedAt: "desc" },
+//     });
 
-    if (mostRecentVerified) {
-      await tx.userContact.update({
-        where: { id: mostRecentVerified.id },
-        data: { isPrimary: true },
-      });
-    }
-  }
-};
+//     if (mostRecentVerified) {
+//       await tx.userContact.update({
+//         where: { id: mostRecentVerified.id },
+//         data: { isPrimary: true },
+//       });
+//     }
+//   }
+// };
 
 const checkVerificationAttempts = async (
   tx: Prisma.TransactionClient,
@@ -434,21 +435,138 @@ export const resendUserOtp = async (_: unknown, args: ResendUserOtpInput) => {
   return result;
 };
 
+// export const addUserContact = async (
+//   _: unknown,
+//   args: AddUserContactInput,
+//   context: any
+// ) => {
+//   // const owner: any = verifyToken(validatedData.token);
+//   if (!context.owner?.userId || typeof context.owner.userId !== "string") {
+//     throw new Error("Invalid or missing token");
+//   }
+
+//   return await prisma.$transaction(async (tx) => {
+//     // Verify user exists and is not deleted
+//     const user = await tx.user.findFirst({
+//       where: {
+//         id: context.owner.userId,
+//         deletedAt: null,
+//       },
+//     });
+
+//     if (!user) {
+//       throw new Error("User not found");
+//     }
+
+//     const validatedData = AddUserContactSchema.parse(args);
+
+//     if (!validatedData) return;
+
+//     const value = validatedData.email || validatedData.phone;
+//     const type = validatedData.email ? "EMAIL" : "PHONE";
+
+//     // Check for existing contact
+//     const existingContact = await tx.userContact.findFirst({
+//       where: {
+//         value,
+//         type,
+//         isVerified: true,
+//         deletedAt: null,
+//       },
+//     });
+
+//     if (existingContact) {
+//       throw new Error(
+//         `This ${type.toLowerCase()} is already registered and verified by a user!`
+//       );
+//     }
+
+//     cleanupUnverifiedContacts(tx, value!, type);
+
+//     // Check contact limit for the current user
+//     const existingContactsCount = await tx.userContact.count({
+//       where: {
+//         userId: context.owner.userId,
+//         type,
+//         isVerified: true,
+//         deletedAt: null,
+//       },
+//     });
+
+//     if (existingContactsCount >= MAX_CONTACTS_PER_TYPE) {
+//       throw new Error(
+//         `Maximum number of ${type.toLowerCase()} contacts (${MAX_CONTACTS_PER_TYPE}) reached`
+//       );
+//     }
+
+//     // Check verification attempts
+//     await checkVerificationAttempts(tx, value!, type);
+
+//     // Create new contact
+//     // const otpData = createOtpData();
+
+//     const otpExpiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+//     // Send OTP
+//     let requestId: string | undefined;
+//     try {
+//       if (validatedData.email && otpExpiresAt) {
+//         const response = await sendOtpEmail(
+//           user.name,
+//           validatedData.email,
+//           OTP_EXPIRY_MINUTES
+//         );
+//         requestId = response.requestId;
+//       }
+//       if (validatedData.phone && otpExpiresAt) {
+//         const response = await sendOtpPhone(
+//           user.name,
+//           validatedData.phone,
+//           OTP_EXPIRY_MINUTES
+//         );
+//         requestId = response.requestId;
+//       }
+//     } catch (error) {
+//       // Log error but don't fail the transaction
+//       console.error("Error sending OTP:", error);
+//     }
+
+//     await tx.userContact.create({
+//       data: {
+//         user: {
+//           connect: { id: context.owner.userId },
+//         },
+//         type,
+//         value: value!,
+//         otp: requestId,
+//         otpExpiresAt,
+//       },
+//     });
+
+//     return {
+//       value,
+//       message: `Verification code sent to ${value}`,
+//       requestId,
+//     };
+//   });
+// };
 export const addUserContact = async (
   _: unknown,
-  args: AddUserContactInput,
-  context: any
+  args: { firebaseToken: string }
 ) => {
-  // const owner: any = verifyToken(validatedData.token);
-  if (!context.owner?.userId || typeof context.owner.userId !== "string") {
-    throw new Error("Invalid or missing token");
+  const { firebaseToken } = args;
+  const decodedToken = await verifyFirebaseIdToken(firebaseToken);
+  const phone = decodedToken.phone_number;
+  const firebaseUid = decodedToken.uid;
+ if (!phone) {
+    throw new Error("No phone number found in Firebase token.");
   }
 
+
   return await prisma.$transaction(async (tx) => {
-    // Verify user exists and is not deleted
     const user = await tx.user.findFirst({
       where: {
-        id: context.owner.userId,
+        firebaseUid,
         deletedAt: null,
       },
     });
@@ -457,203 +575,136 @@ export const addUserContact = async (
       throw new Error("User not found");
     }
 
-    const validatedData = AddUserContactSchema.parse(args);
-
-    if (!validatedData) return;
-
-    const value = validatedData.email || validatedData.phone;
-    const type = validatedData.email ? "EMAIL" : "PHONE";
-
-    // Check for existing contact
     const existingContact = await tx.userContact.findFirst({
       where: {
-        value,
-        type,
-        isVerified: true,
+        value: phone,
         deletedAt: null,
       },
     });
 
     if (existingContact) {
-      throw new Error(
-        `This ${type.toLowerCase()} is already registered and verified by a user!`
-      );
+      throw new Error("Contact already exists");
     }
 
-    cleanupUnverifiedContacts(tx, value!, type);
-
-    // Check contact limit for the current user
-    const existingContactsCount = await tx.userContact.count({
-      where: {
-        userId: context.owner.userId,
-        type,
-        isVerified: true,
-        deletedAt: null,
-      },
-    });
-
-    if (existingContactsCount >= MAX_CONTACTS_PER_TYPE) {
-      throw new Error(
-        `Maximum number of ${type.toLowerCase()} contacts (${MAX_CONTACTS_PER_TYPE}) reached`
-      );
-    }
-
-    // Check verification attempts
-    await checkVerificationAttempts(tx, value!, type);
-
-    // Create new contact
-    // const otpData = createOtpData();
-
-    const otpExpiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
-
-    // Send OTP
-    let requestId: string | undefined;
-    try {
-      if (validatedData.email && otpExpiresAt) {
-        const response = await sendOtpEmail(
-          user.name,
-          validatedData.email,
-          OTP_EXPIRY_MINUTES
-        );
-        requestId = response.requestId;
-      }
-      if (validatedData.phone && otpExpiresAt) {
-        const response = await sendOtpPhone(
-          user.name,
-          validatedData.phone,
-          OTP_EXPIRY_MINUTES
-        );
-        requestId = response.requestId;
-      }
-    } catch (error) {
-      // Log error but don't fail the transaction
-      console.error("Error sending OTP:", error);
-    }
-
-    await tx.userContact.create({
+    const newContact = await tx.userContact.create({
       data: {
-        user: {
-          connect: { id: context.owner.userId },
-        },
-        type,
-        value: value!,
-        otp: requestId,
-        otpExpiresAt,
-      },
-    });
-
-    return {
-      value,
-      message: `Verification code sent to ${value}`,
-      requestId,
-    };
-  });
-};
-
-export const verifyUserContact = async (
-  _: unknown,
-  args: VerifyUserContactInput
-) => {
-  const validatedData = VerifyUserContactSchema.parse(args);
-
-  if (!validatedData) return;
-
-  return await prisma.$transaction(async (tx) => {
-    // Verify contact
-    const { requestId, isOTPVerified, message } = await verifyOtp(
-      validatedData.requestId,
-      validatedData.otp
-    );
-
-    if (!isOTPVerified) {
-      throw new Error(message);
-    }
-    const value = validatedData.email || validatedData.phone;
-    const type = validatedData.email ? "EMAIL" : "PHONE";
-
-    const contact = await tx.userContact.findFirst({
-      where: {
-        value,
-        type,
-        deletedAt: null,
-      },
-      include: {
-        user: true,
-      },
-    });
-
-    if (!contact) {
-      throw new Error("Contact not found");
-    }
-
-    let slug: string | undefined;
-    if (!contact.user.slug && contact.user.name) {
-      slug = await generateUniqueSlug({
-        initialSlug: contact.user.name,
-        id: contact.user.id,
-      });
-    }
-
-    // if (!contact.otp || !contact.otpExpiresAt) {
-    //   throw new Error("No verification code found. Please request a new one.");
-    // }
-
-    // if (contact.otpExpiresAt < new Date()) {
-    //   throw new Error(
-    //     "Verification code has expired. Please request a new one."
-    //   );
-    // }
-
-    // if (contact.otp !== validatedData.otp) {
-    //   throw new Error("Invalid verification code");
-    // }
-
-    // Verify the contact
-    const verifiedContact = await tx.userContact.update({
-      where: { value, deletedAt: null, otp: requestId },
-      data: {
+        userId: user.id,
+        type: "PHONE",
+        value: phone,
         isVerified: true,
         verifiedAt: new Date(),
-        otp: null,
-        otpExpiresAt: null,
-        user: {
-          update: {
-            slug,
-          },
-        },
-      },
-      include: {
-        user: {
-          include: {
-            contacts: true,
-            addresses: {
-              where: {
-                deletedAt: null,
-              },
-              orderBy: {
-                createdAt: "desc",
-              },
-            },
-          },
-        },
       },
     });
 
-    // Ensure there's a primary contact
-    await ensurePrimaryContact(tx, verifiedContact.userId);
-    const token = generateToken(verifiedContact.userId, "USER");
-
-    return {
-      ...verifiedContact,
-      token,
-      message: `${value} verified successfully!`,
-      requestId,
-    };
+    return newContact;
   });
 };
 
+// export const verifyUserContact = async (
+//   _: unknown,
+//   args: VerifyUserContactInput
+// ) => {
+//   const validatedData = VerifyUserContactSchema.parse(args);
+
+//   if (!validatedData) return;
+
+//   return await prisma.$transaction(async (tx) => {
+//     // Verify contact
+//     const { requestId, isOTPVerified, message } = await verifyOtp(
+//       validatedData.requestId,
+//       validatedData.otp
+//     );
+
+//     if (!isOTPVerified) {
+//       throw new Error(message);
+//     }
+//     const value = validatedData.email || validatedData.phone;
+//     const type = validatedData.email ? "EMAIL" : "PHONE";
+
+//     const contact = await tx.userContact.findFirst({
+//       where: {
+//         value,
+//         type,
+//         deletedAt: null,
+//       },
+//       include: {
+//         user: true,
+//       },
+//     });
+
+//     if (!contact) {
+//       throw new Error("Contact not found");
+//     }
+
+//     let slug: string | undefined;
+//     if (!contact.user.slug && contact.user.name) {
+//       slug = await generateUniqueSlug({
+//         initialSlug: contact.user.name,
+//         id: contact.user.id,
+//       });
+//     }
+
+//     // if (!contact.otp || !contact.otpExpiresAt) {
+//     //   throw new Error("No verification code found. Please request a new one.");
+//     // }
+
+//     // if (contact.otpExpiresAt < new Date()) {
+//     //   throw new Error(
+//     //     "Verification code has expired. Please request a new one."
+//     //   );
+//     // }
+
+//     // if (contact.otp !== validatedData.otp) {
+//     //   throw new Error("Invalid verification code");
+//     // }
+
+//     // Verify the contact
+//     const verifiedContact = await tx.userContact.update({
+//       where: { value, deletedAt: null, otp: requestId },
+//       data: {
+//         isVerified: true,
+//         verifiedAt: new Date(),
+//         otp: null,
+//         otpExpiresAt: null,
+//         user: {
+//           update: {
+//             slug,
+//           },
+//         },
+//       },
+//       include: {
+//         user: {
+//           include: {
+//             contacts: true,
+//             addresses: {
+//               where: {
+//                 deletedAt: null,
+//               },
+//               orderBy: {
+//                 createdAt: "desc",
+//               },
+//             },
+//           },
+//         },
+//       },
+//     });
+
+//     // Ensure there's a primary contact
+//     await ensurePrimaryContact(tx, verifiedContact.userId);
+//     const token = generateToken(verifiedContact.userId, "USER");
+
+//     return {
+//       ...verifiedContact,
+//       token,
+//       message: `${value} verified successfully!`,
+//       requestId,
+//     };
+//   });
+// };
+
 export const userMe = async (_: unknown, args: unknown, context: any) => {
-  if (!context.owner?.userId || typeof context.owner?.userId !== "string") {
+
+  if (!context.owner?.user_id || typeof context.owner?.user_id !== "string") {
     throw new Error("Invalid or missing token");
   }
 
@@ -1494,3 +1545,63 @@ const generateUniqueSlug = async ({
 
   return slug;
 };
+
+
+
+
+export const firebaseGoogleOAuthVerify = async (
+  _: unknown,
+  args: { input: { idToken: string, name: string, phone: string } }
+) => {
+  const { idToken, name: userName, phone: userPhone } = args.input;
+  const decodedToken = await admin.auth().verifyIdToken(idToken);
+ 
+  const { uid, email, picture, name, phone   } = decodedToken;
+  let user = await prisma.user.findUnique({
+    where: { firebaseUid: uid },
+  });
+
+  if (!user) {
+    const newUserName = name || userName || "";
+    const newPhone = phone || userPhone || "";
+    const slug = await generateUniqueSlug({
+      initialSlug: newUserName,
+      id: undefined,
+    });
+    user = await prisma.user.create({
+      data: {
+        firebaseUid: uid,
+        name: newUserName,
+        slug: slug,
+        avatar: picture,
+      
+        contacts: {
+          create: [{
+            value: email!,
+            type: "EMAIL",
+            isVerified: true,
+            isPrimary: true,
+          }, 
+      ...(newPhone ? [{
+      value: newPhone,
+      type: ContactType.PHONE,
+      isVerified: true,
+      isPrimary: false,
+    }] : [])
+        ],
+          
+        },
+      },
+    });
+  }
+
+  return {
+    token: idToken,
+    id: user.id,
+    name: user.name,
+    slug: user.slug,
+
+    
+  };
+};
+
