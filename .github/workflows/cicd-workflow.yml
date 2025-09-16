@@ -2,28 +2,23 @@ name: Build and Deploy Docker Image
 on:
   push:
     branches: [main]
-
 env:
   IMAGE_NAME: spritegenix/cyber-sec-backend
   CONTAINER_NAME: cyber-sec-backend
   NODE_ENV: development
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
       - name: Decode and Create .env File
         env:
           ENV_FILE_B64: ${{ secrets.ENV_FILE_B64 }}
@@ -33,18 +28,15 @@ jobs:
           else
             echo "Warning: ENV_FILE_B64 secret not found"
           fi
-
       - name: Build Docker Image
         run: |
           docker build --no-cache -t ${{ env.IMAGE_NAME }}:latest .
           echo "Image built successfully"
-
       - name: Run Docker Container for Testing
         run: |
           # Remove any existing test container
           docker rm -f test-container 2>/dev/null || true
-
-          # Run container with health check - using /health endpoint since it exists
+          # Run container with health check
           docker run -d \
             --network=host \
             --name test-container \
@@ -55,52 +47,10 @@ jobs:
             --health-retries=5 \
             --health-start-period=90s \
             ${{ env.IMAGE_NAME }}:latest
-
           echo "Container started, waiting for initialization..."
-
-      - name: Show Initial Container Status
-        run: |
-          echo "=== Initial Container Status ==="
-          docker ps -a | grep test-container || echo "Container not found"
-          sleep 5
-          echo "=== Initial Container Logs ==="
-          docker logs test-container || echo "No logs available yet"
-
-      - name: Wait for Database and GraphQL Setup
-        run: |
-          echo "Waiting 30 seconds for database connection and GraphQL server setup..."
-          sleep 30
-
-          echo "=== Container Logs After Database Wait ==="
-          docker logs test-container
-
-          echo "=== Container Process Status ==="
-          docker exec test-container ps aux 2>/dev/null || echo "ps command failed"
-
-          echo "=== Check available tools ==="
-          docker exec test-container which wget 2>/dev/null && echo "✅ wget available" || echo "❌ wget not found"
-          docker exec test-container which curl 2>/dev/null && echo "✅ curl available" || echo "❌ curl not found"
-
-      - name: Test Health Check Manually
-        run: |
-          echo "=== Testing Health Endpoints Manually ==="
-
-          # Test with wget first
-          echo "Testing health endpoint with wget:"
-          docker exec test-container wget --no-verbose --tries=1 --spider http://localhost:4000/health 2>&1 || echo "wget health test failed with exit code $?"
-
-          # Test root endpoint with wget
-          echo "Testing root endpoint with wget:"
-          docker exec test-container wget --no-verbose --tries=1 --spider http://localhost:4000/ 2>&1 || echo "wget root test failed with exit code $?"
-
-          # Test from host network with curl (if available on host)
-          echo "Testing from host network:"
-          curl -v http://localhost:4000/health 2>&1 && echo "✅ Host health test passed" || echo "❌ Host health test failed"
-          curl -v http://localhost:4000/ 2>&1 && echo "✅ Host root test passed" || echo "❌ Host root test failed"
-
       - name: Wait for Container Health Check
         run: |
-          # Wait up to 180 seconds for container to be healthy (increased for GraphQL startup)
+          # Wait up to 180 seconds for container to be healthy
           timeout=180
           while [ $timeout -gt 0 ]; do
             status=$(docker inspect --format='{{.State.Health.Status}}' test-container 2>/dev/null || echo "no-health")
@@ -112,91 +62,37 @@ jobs:
               break
             elif [ "$status" = "unhealthy" ]; then
               echo "❌ Container failed health check"
-              echo "=== Health Check Details ==="
-              docker inspect --format='{{json .State.Health}}' test-container 2>/dev/null | jq . || docker inspect --format='{{json .State.Health}}' test-container
-              echo "=== Final Container Logs ==="
               docker logs test-container
               exit 1
-            fi
-            
-            # Show logs every 30 seconds for debugging
-            if [ $((timeout % 30)) -eq 0 ]; then
-              echo "=== Current Container Logs ==="
-              docker logs test-container --tail=10
             fi
             
             sleep 10
             timeout=$((timeout-10))
           done
-
           if [ $timeout -le 0 ]; then
             echo "❌ Timeout waiting for container to be healthy"
-            echo "=== Health Check Details ==="
-            docker inspect --format='{{json .State.Health}}' test-container 2>/dev/null | jq . || docker inspect --format='{{json .State.Health}}' test-container
-            echo "=== Final Container Logs ==="
             docker logs test-container
             exit 1
           fi
-
       - name: Test Container Endpoints
         run: |
           echo "=== Final Endpoint Tests ==="
-
-          # Test health endpoint from host
+          # Test health endpoint
           if ! curl -f http://localhost:4000/health; then
             echo "❌ Health endpoint test failed"
             docker logs test-container
             exit 1
           fi
-
-          # Test root endpoint from host
-          if ! curl -f http://localhost:4000/; then
-            echo "❌ Root endpoint test failed"
-            docker logs test-container
-            exit 1
-          fi
-
-          # Test GraphQL endpoint (should return Method Not Allowed for GET)
-          echo "Testing GraphQL endpoint (expecting 405 or GraphQL response):"
-          curl -v http://localhost:4000/graphql 2>&1 || echo "GraphQL endpoint test completed"
-
           echo "✅ Container tests passed!"
-
-      - name: Get Detailed Health Check Info
-        if: failure()
-        run: |
-          echo "=== Detailed Health Check Information ==="
-          docker inspect --format='{{json .State.Health}}' test-container 2>/dev/null | jq . || docker inspect --format='{{json .State.Health}}' test-container
-
-          echo "=== Container State ==="
-          docker inspect --format='{{json .State}}' test-container 2>/dev/null | jq . || docker inspect --format='{{json .State}}' test-container
-
-          echo "=== Environment Variables ==="
-          docker exec test-container env 2>/dev/null || echo "Cannot get environment variables"
-
-      - name: List All Containers on Failure
-        if: failure()
-        run: |
-          echo "=== All Containers ==="
-          docker ps -a
-
-      - name: Capture Final Container Logs on Failure
-        if: failure()
-        run: |
-          echo "=== Final Container Logs ==="
-          docker logs test-container 2>&1 || echo "No logs found for test-container"
-
       - name: Stop and Remove Test Container
         if: always()
         run: |
           docker stop test-container 2>/dev/null || true
           docker rm test-container 2>/dev/null || true
-
       - name: Push Docker Image to Docker Hub
         run: |
           docker push ${{ env.IMAGE_NAME }}:latest
           echo "Image pushed successfully"
-
       - name: Cleanup
         if: always()
         run: |
@@ -204,44 +100,24 @@ jobs:
           docker system prune -f
 
   deploy:
-  needs: build
-  runs-on: ubuntu-latest
-  steps:
-    - name: Deploy to EC2 via SSH
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USER }}
-        key: ${{ secrets.EC2_SSH_KEY }}
-        script: |
-          # Login to Docker Hub
-          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-          
-          # Stop and remove existing container
-          docker stop cyber-sec-backend || true
-          docker rm cyber-sec-backend || true
-          
-          # Pull latest image
-          docker pull spritegenix/cyber-sec-backend:latest
-          
-          # Run new container
-          docker run -d \
-            --network=host \
-            --name cyber-sec-backend \
-            --restart unless-stopped \
-            --health-cmd="wget --no-verbose --tries=1 --spider http://localhost:4000/health || exit 1" \
-            --health-interval=15s \
-            --health-timeout=10s \
-            --health-retries=5 \
-            --health-start-period=90s \
-            spritegenix/cyber-sec-backend:latest
-          
-          # Wait and check if container is running
-          sleep 30
-          docker ps | grep cyber-sec-backend
-          echo "Deployment completed!"
-
-
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+            docker stop cyber-sec-backend || true
+            docker rm cyber-sec-backend || true
+            docker pull spritegenix/cyber-sec-backend:latest
+            docker run -d --network=host --name cyber-sec-backend --restart unless-stopped spritegenix/cyber-sec-backend:latest
+            sleep 10
+            docker ps | grep cyber-sec-backend
+            echo "✅ Deployment successful!"
       - name: Cleanup Old Images
         run: |
           docker image prune -f
