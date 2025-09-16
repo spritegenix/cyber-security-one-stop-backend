@@ -204,112 +204,43 @@ jobs:
           docker system prune -f
 
   deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Pull Latest Docker Image
-        run: |
-          docker pull ${{ env.IMAGE_NAME }}:latest
-          echo "Image pulled successfully"
-
-      - name: Stop and Remove Existing Container
-        run: |
-          if docker ps -q -f name=${{ env.CONTAINER_NAME }}; then
-            echo "Stopping existing container..."
-            docker stop ${{ env.CONTAINER_NAME }}
-          fi
-          if docker ps -aq -f name=${{ env.CONTAINER_NAME }}; then
-            echo "Removing existing container..."
-            docker rm ${{ env.CONTAINER_NAME }}
-          fi
-
-      - name: Deploy New Container
-        run: |
+  needs: build
+  runs-on: ubuntu-latest
+  steps:
+    - name: Deploy to EC2 via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          # Login to Docker Hub
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+          
+          # Stop and remove existing container
+          docker stop cyber-sec-backend || true
+          docker rm cyber-sec-backend || true
+          
+          # Pull latest image
+          docker pull spritegenix/cyber-sec-backend:latest
+          
+          # Run new container
           docker run -d \
             --network=host \
-            --name ${{ env.CONTAINER_NAME }} \
+            --name cyber-sec-backend \
             --restart unless-stopped \
             --health-cmd="wget --no-verbose --tries=1 --spider http://localhost:4000/health || exit 1" \
             --health-interval=15s \
             --health-timeout=10s \
             --health-retries=5 \
             --health-start-period=90s \
-            ${{ env.IMAGE_NAME }}:latest
-
-          echo "Container deployed successfully"
-
-      - name: Debug Deployment
-        run: |
-          echo "=== Deployment Debug Info ==="
-          echo "Container status:"
-          docker ps -a | grep ${{ env.CONTAINER_NAME }}
-
-          echo "Waiting 30 seconds for app initialization..."
+            spritegenix/cyber-sec-backend:latest
+          
+          # Wait and check if container is running
           sleep 30
+          docker ps | grep cyber-sec-backend
+          echo "Deployment completed!"
 
-          echo "Container logs:"
-          docker logs ${{ env.CONTAINER_NAME }}
-
-      - name: Verify Deployment
-        run: |
-          echo "Verifying deployment..."
-
-          # Check if container is running
-          if [ "$(docker inspect -f '{{.State.Running}}' ${{ env.CONTAINER_NAME }})" != "true" ]; then
-            echo "❌ Deployment failed: Container is not running"
-            docker logs ${{ env.CONTAINER_NAME }}
-            exit 1
-          fi
-
-          # Wait for health check
-          timeout=120
-          while [ $timeout -gt 0 ]; do
-            status=$(docker inspect --format='{{.State.Health.Status}}' ${{ env.CONTAINER_NAME }} 2>/dev/null || echo "starting")
-            
-            echo "Container health status: $status (${timeout}s remaining)"
-            
-            if [ "$status" = "healthy" ]; then
-              echo "✅ Deployment successful! Container is healthy and running."
-              
-              # Final connectivity tests
-              echo "=== Final Connectivity Tests ==="
-              curl -f http://localhost:4000/health && echo "✅ Health endpoint is accessible" || echo "⚠️  Health endpoint test failed"
-              curl -f http://localhost:4000/ && echo "✅ Root endpoint is accessible" || echo "⚠️  Root endpoint test failed"
-              
-              break
-            elif [ "$status" = "unhealthy" ]; then
-              echo "❌ Deployment failed: Container is unhealthy"
-              echo "=== Health Check Details ==="
-              docker inspect --format='{{json .State.Health}}' ${{ env.CONTAINER_NAME }} 2>/dev/null | jq . || docker inspect --format='{{json .State.Health}}' ${{ env.CONTAINER_NAME }}
-              echo "=== Container Logs ==="
-              docker logs ${{ env.CONTAINER_NAME }}
-              exit 1
-            fi
-            
-            # Show logs every 30 seconds
-            if [ $((timeout % 30)) -eq 0 ]; then
-              echo "=== Current Container Logs ==="
-              docker logs ${{ env.CONTAINER_NAME }} --tail=10
-            fi
-            
-            sleep 10
-            timeout=$((timeout-10))
-          done
-
-          if [ $timeout -le 0 ]; then
-            echo "❌ Deployment timeout: Container didn't become healthy"
-            echo "=== Health Check Details ==="
-            docker inspect --format='{{json .State.Health}}' ${{ env.CONTAINER_NAME }} 2>/dev/null | jq . || docker inspect --format='{{json .State.Health}}' ${{ env.CONTAINER_NAME }}
-            echo "=== Container Logs ==="
-            docker logs ${{ env.CONTAINER_NAME }}
-            exit 1
-          fi
 
       - name: Cleanup Old Images
         run: |
