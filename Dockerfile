@@ -16,7 +16,7 @@ RUN apt-get update -y && apt-get install -y openssl libssl-dev wget curl
 RUN bun install
 
 # Build the app
-RUN bun run build:default
+RUN bun run build
 
 # Generate Prisma client
 RUN bun run prisma generate

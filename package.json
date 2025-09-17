@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "concurrently \"bun run --watch src/app.ts\" \"bun run watch:build\" || concurrently \"npm run --watch src/app.ts\" \"node run watch:build\"",
     "watch:build": "tsc --watch",
-    "build": "bun build || npm run build:default",
+    "build": "bun build src/app.ts --outdir ./dist --target node",
     "build:default": "tsc",
     "start": "bun dist/app.js || node dist/app.js"
   },
